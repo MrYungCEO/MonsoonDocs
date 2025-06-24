@@ -1,0 +1,391 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-purple-300 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-purple-400;
+}
+
+/* Ebook content styling - Enhanced for better markdown rendering */
+.ebook-content {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  line-height: 1.8;
+  color: #1a202c;
+  font-size: 16px;
+  background: white;
+}
+
+.ebook-content h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin-bottom: 1.5rem;
+  margin-top: 2rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 3px solid #8b5cf6;
+  line-height: 1.2;
+}
+
+.ebook-content h2 {
+  font-size: 2rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 1.25rem;
+  margin-top: 2.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #a78bfa;
+  line-height: 1.3;
+}
+
+.ebook-content h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #4a5568;
+  margin-bottom: 1rem;
+  margin-top: 2rem;
+  line-height: 1.4;
+}
+
+.ebook-content h4 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #4a5568;
+  margin-bottom: 0.75rem;
+  margin-top: 1.5rem;
+  line-height: 1.4;
+}
+
+.ebook-content h5 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #4a5568;
+  margin-bottom: 0.75rem;
+  margin-top: 1.25rem;
+  line-height: 1.4;
+}
+
+.ebook-content h6 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #4a5568;
+  margin-bottom: 0.5rem;
+  margin-top: 1rem;
+  line-height: 1.4;
+}
+
+.ebook-content p {
+  margin-bottom: 1.25rem;
+  font-size: 1.125rem;
+  line-height: 1.8;
+  color: #2d3748;
+  text-align: justify;
+}
+
+.ebook-content ul {
+  margin-bottom: 1.25rem;
+  padding-left: 2rem;
+  list-style-type: disc;
+}
+
+.ebook-content ol {
+  margin-bottom: 1.25rem;
+  padding-left: 2rem;
+  list-style-type: decimal;
+}
+
+.ebook-content li {
+  margin-bottom: 0.5rem;
+  font-size: 1.125rem;
+  line-height: 1.7;
+  color: #2d3748;
+}
+
+.ebook-content ul li {
+  list-style-type: disc;
+  margin-left: 0;
+}
+
+.ebook-content ol li {
+  list-style-type: decimal;
+  margin-left: 0;
+}
+
+.ebook-content ul ul,
+.ebook-content ol ol,
+.ebook-content ul ol,
+.ebook-content ol ul {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.ebook-content blockquote {
+  border-left: 4px solid #8b5cf6;
+  padding: 1rem 1.5rem;
+  margin: 1.5rem 0;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  font-style: italic;
+  color: #4c1d95;
+  border-radius: 0 8px 8px 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.ebook-content blockquote p {
+  margin-bottom: 0;
+  font-size: 1.125rem;
+  font-weight: 500;
+}
+
+.ebook-content code {
+  background-color: #f1f5f9;
+  color: #7c3aed;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+  font-weight: 600;
+}
+
+.ebook-content pre {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: #10b981;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin: 1.5rem 0;
+  overflow-x: auto;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #374151;
+}
+
+.ebook-content pre code {
+  background: transparent;
+  color: #10b981;
+  padding: 0;
+  font-size: 0.9rem;
+  font-weight: normal;
+}
+
+.ebook-content a {
+  color: #7c3aed;
+  text-decoration: underline;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+
+.ebook-content a:hover {
+  color: #5b21b6;
+  text-decoration: none;
+}
+
+.ebook-content hr {
+  border: none;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #8b5cf6, transparent);
+  margin: 2.5rem 0;
+  border-radius: 1px;
+}
+
+.ebook-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.ebook-content th {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+  font-weight: 600;
+  padding: 1rem;
+  text-align: left;
+  font-size: 1rem;
+}
+
+.ebook-content td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  color: #374151;
+  font-size: 1rem;
+}
+
+.ebook-content tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+.ebook-content strong {
+  font-weight: 700;
+  color: #1a202c;
+}
+
+.ebook-content em {
+  font-style: italic;
+  color: #4a5568;
+}
+
+.ebook-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 1.5rem 0;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Table of Contents Styling */
+.ebook-content nav ul {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+}
+
+.ebook-content nav ul li {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0.5rem 0;
+}
+
+.ebook-content nav ul li:last-child {
+  border-bottom: none;
+}
+
+.ebook-content nav ul li a {
+  color: #7c3aed;
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.ebook-content nav ul li a:hover {
+  color: #5b21b6;
+  padding-left: 0.5rem;
+}
+
+/* Animation keyframes */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Glass effect utilities */
+.glass {
+  @apply bg-white/10 backdrop-blur-md border border-white/20;
+}
+
+.glass-dark {
+  @apply bg-black/20 backdrop-blur-md border border-white/10;
+}
+
+/* Custom gradient backgrounds */
+.bg-gradient-mesh {
+  background: radial-gradient(circle at 25% 25%, #7c3aed 0%, transparent 50%),
+              radial-gradient(circle at 75% 75%, #a855f7 0%, transparent 50%),
+              linear-gradient(135deg, #000000 0%, #1a0b2e 100%);
+}
+
+/* Enhanced prose styling for better readability */
+.prose-enhanced {
+  max-width: none;
+}
+
+.prose-enhanced > *:first-child {
+  margin-top: 0;
+}
+
+.prose-enhanced > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Ensure proper spacing and typography hierarchy */
+.ebook-content > h1:first-child {
+  margin-top: 0;
+  text-align: center;
+  font-size: 3rem;
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 2rem;
+}
+
+.ebook-content > h2:first-of-type {
+  margin-top: 1rem;
+}
+
+/* Monaco Editor Customizations */
+.monaco-editor {
+  font-family: 'JetBrains Mono', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
+}
+
+.monaco-editor .margin {
+  background-color: #f8fafc !important;
+}
+
+.monaco-editor .monaco-editor-background {
+  background-color: #ffffff !important;
+}
+
+.monaco-editor .current-line {
+  background-color: #f1f5f9 !important;
+}
+
+/* Print styles for better PDF export */
+@media print {
+  .ebook-content {
+    font-size: 12pt;
+    line-height: 1.6;
+    background: white !important;
+  }
+  
+  .ebook-content h1 {
+    font-size: 24pt;
+    page-break-after: avoid;
+  }
+  
+  .ebook-content h2 {
+    font-size: 18pt;
+    page-break-after: avoid;
+  }
+  
+  .ebook-content h3 {
+    font-size: 14pt;
+    page-break-after: avoid;
+  }
+}
