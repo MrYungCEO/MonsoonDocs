@@ -504,13 +504,13 @@ const App: React.FC = () => {
         body {
           font-family: 'Georgia', serif;
           line-height: 1.6;
-          color: #333;
+          color: ${COLOR_THEMES[settings.colorTheme].text === '#FFFFFF' ? '#333' : COLOR_THEMES[settings.colorTheme].text};
           margin: 0;
           padding: 0;
-          background-color: #f8f8f8;
+          background-color: ${COLOR_THEMES[settings.colorTheme].background};
         }
         .document-container {
-          background-color: white;
+          background-color: ${COLOR_THEMES[settings.colorTheme].text === '#FFFFFF' ? 'rgba(255,255,255,0.9)' : 'white'};
           width: 100%; /* Ensure it takes full width of WebView */
           height: 100%; /* Ensure it takes full height of WebView */
           padding: 30px;
@@ -519,7 +519,7 @@ const App: React.FC = () => {
           box-sizing: border-box; /* Include padding in width/height */
         }
         h1, h2, h3, h4, h5, h6 {
-          color: #222;
+          color: ${COLOR_THEMES[settings.colorTheme].primary};
           margin-top: 1.5em;
           margin-bottom: 0.5em;
         }
@@ -530,14 +530,14 @@ const App: React.FC = () => {
         ul, ol { margin-bottom: 1em; padding-left: 20px; }
         li { margin-bottom: 0.5em; }
         blockquote {
-          border-left: 4px solid #ccc;
+          border-left: 4px solid ${COLOR_THEMES[settings.colorTheme].secondary};
           padding-left: 15px;
-          color: #666;
+          color: ${COLOR_THEMES[settings.colorTheme].primary};
           font-style: italic;
           margin-bottom: 1em;
         }
         pre {
-          background-color: #eee;
+          background-color: ${COLOR_THEMES[settings.colorTheme].border};
           padding: 10px;
           border-radius: 5px;
           overflow-x: auto;
@@ -545,7 +545,7 @@ const App: React.FC = () => {
         }
         code {
           font-family: 'Courier New', monospace;
-          background-color: #eee;
+          background-color: ${COLOR_THEMES[settings.colorTheme].border};
           padding: 2px 4px;
           border-radius: 3px;
         }
@@ -558,11 +558,18 @@ const App: React.FC = () => {
           box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
         a {
-          color: #8b5cf6;
+          color: ${COLOR_THEMES[settings.colorTheme].primary};
           text-decoration: none;
         }
         a:hover {
           text-decoration: underline;
+        }
+        hr {
+          border: none;
+          height: 2px;
+          background: linear-gradient(90deg, transparent, ${COLOR_THEMES[settings.colorTheme].primary}, transparent);
+          margin: 2.5rem 0;
+          border-radius: 1px;
         }
         .logo-container {
           text-align: center;
@@ -573,6 +580,32 @@ const App: React.FC = () => {
           max-width: 192px;
           border-radius: 8px;
           box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 1.5rem 0;
+          background: ${COLOR_THEMES[settings.colorTheme].text === '#FFFFFF' ? 'rgba(255,255,255,0.9)' : 'white'};
+          border-radius: 8px;
+          overflow: hidden;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        th {
+          background: linear-gradient(135deg, ${COLOR_THEMES[settings.colorTheme].primary} 0%, ${COLOR_THEMES[settings.colorTheme].secondary} 100%);
+          color: white;
+          font-weight: 600;
+          padding: 1rem;
+          text-align: left;
+          font-size: 1rem;
+        }
+        td {
+          padding: 0.75rem 1rem;
+          border-bottom: 1px solid ${COLOR_THEMES[settings.colorTheme].border};
+          color: ${COLOR_THEMES[settings.colorTheme].text === '#FFFFFF' ? '#333' : COLOR_THEMES[settings.colorTheme].text}; /* Dynamic color for readability */
+          font-size: 1rem;
+        }
+        tbody tr:hover {
+          background-color: ${COLOR_THEMES[settings.colorTheme].text === '#FFFFFF' ? '#f9fafb' : 'rgba(0,0,0,0.05)'}; /* Subtle hover effect */
         }
       </style>
     </head>
@@ -1119,7 +1152,7 @@ const styles = StyleSheet.create({
   },
   ebookPreview: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'transparent', /* Changed to transparent */
     alignSelf: 'center', /* Center the preview horizontally */
     width: '90%', /* Use percentage for responsiveness */
     maxWidth: 600, /* Adjusted for a wider document preview on mobile */
@@ -1134,6 +1167,7 @@ const styles = StyleSheet.create({
   },
   webViewContainer: {
     flex: 1,
+    backgroundColor: 'transparent', /* Changed to transparent */
   },
   editorContainer: {
     flex: 1,
