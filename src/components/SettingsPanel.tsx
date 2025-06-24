@@ -1,5 +1,5 @@
 import React from 'react';
-import { Key, MessageSquare, Image, Palette, CloudLightning, Download, FileText, BookOpen, PenTool, Heart, Briefcase, Plus, FileDown } from 'lucide-react';
+import { Key, MessageSquare, Image, Palette, CloudLightning, Download, FileText, BookOpen, PenTool, Heart, Briefcase, Plus, FileDown, ChevronDown } from 'lucide-react';
 import { EbookSettings, EbookState } from './EbookGenerator';
 import { generateEbook } from '../utils/geminiApi';
 import { exportMarkdown, exportAsPdf } from '../utils/fileUtils';
@@ -18,6 +18,8 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onSettingsChange,
   onStateChange
 }) => {
+  const [isBrandingOpen, setIsBrandingOpen] = React.useState(true); // Changed to true for visibility
+
   const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -225,52 +227,42 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({
             />
           </div>
 
-          {/* Logo Upload */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-purple-200 mb-2">
-              <Image className="w-4 h-4" />
-              Upload Logo (Optional)
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleLogoUpload}
-              className="block w-full text-sm text-purple-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700 file:transition-colors file:duration-200 cursor-pointer"
-            />
-          </div>
-
-          {/* Background Upload */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-purple-200 mb-2">
-              <Image className="w-4 h-4" />
-              Background Image (Optional)
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleBackgroundUpload}
-              className="block w-full text-sm text-purple-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-600 file:text-white hover:file:bg-purple-700 file:transition-colors file:duration-200 cursor-pointer"
-            />
-          </div>
-
-          {/* Color Theme */}
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-purple-200 mb-2">
-              <Palette className="w-4 h-4" />
-              Color Theme
-            </label>
-            <select
-              value={settings.colorTheme}
-              onChange={(e) => onSettingsChange({ colorTheme: e.target.value })}
-              className="w-full px-4 py-3 bg-black/50 border border-purple-500/30 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+          {/* Branding Section */}
+          <div className="border-t border-purple-500/30 pt-5 mt-5">
+            <button
+              onClick={() => setIsBrandingOpen(!isBrandingOpen)}
+              className="w-full flex justify-between items-center text-lg font-semibold text-white mb-4"
             >
-              <option value="purple">Purple</option>
-              <option value="blue">Blue</option>
-              <option value="green">Green</option>
-              <option value="red">Red</option>
-              <option value="indigo">Indigo</option>
-              <option value="pink">Pink</option>
-            </select>
+              <span className="flex items-center gap-2">
+                <Image className="w-5 h-5 text-purple-400" />
+                Branding (Optional)
+              </span>
+              <ChevronDown className={`w-5 h-5 transition-transform duration-200 ${isBrandingOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {isBrandingOpen && (
+              <div className="space-y-5 mt-4">
+
+                {/* Color Theme */}
+                <div>
+                  <label className="flex items-center gap-2 text-sm font-medium text-purple-200 mb-2">
+                    <Palette className="w-4 h-4" />
+                    Color Theme
+                  </label>
+                  <select
+                    value={settings.colorTheme}
+                    onChange={(e) => onSettingsChange({ colorTheme: e.target.value })}
+                    className="w-full px-4 py-3 bg-black/50 border border-purple-500/30 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                  >
+                    <option value="purple">Purple</option>
+                    <option value="blue">Blue</option>
+                    <option value="green">Green</option>
+                    <option value="red">Red</option>
+                    <option value="indigo">Indigo</option>
+                    <option value="pink">Pink</option>
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Generation Buttons */}

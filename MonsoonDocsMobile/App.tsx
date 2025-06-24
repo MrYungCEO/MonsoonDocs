@@ -152,12 +152,63 @@ Make it compelling, comprehensive, and action-oriented to win the business.`,
   }
 ];
 
+const COLOR_THEMES = {
+  purple: {
+    primary: '#8B5CF6', // purple-600
+    secondary: '#A78BFA', // purple-400
+    text: '#FFFFFF',
+    background: 'rgba(0,0,0,0.7)',
+    border: 'rgba(139,92,246,0.3)',
+    shadow: 'rgba(139,92,246,0.1)',
+  },
+  blue: {
+    primary: '#3B82F6', // blue-600
+    secondary: '#60A5FA', // blue-400
+    text: '#FFFFFF',
+    background: 'rgba(0,0,0,0.7)',
+    border: 'rgba(59,130,246,0.3)',
+    shadow: 'rgba(59,130,246,0.1)',
+  },
+  green: {
+    primary: '#22C55E', // green-600
+    secondary: '#4ADE80', // green-400
+    text: '#FFFFFF',
+    background: 'rgba(0,0,0,0.7)',
+    border: 'rgba(34,197,94,0.3)',
+    shadow: 'rgba(34,197,94,0.1)',
+  },
+  red: {
+    primary: '#EF4444', // red-500
+    secondary: '#F87171', // red-400
+    text: '#FFFFFF',
+    background: 'rgba(0,0,0,0.7)',
+    border: 'rgba(239,68,68,0.3)',
+    shadow: 'rgba(239,68,68,0.1)',
+  },
+  indigo: {
+    primary: '#6366F1', // indigo-500
+    secondary: '#818CF8', // indigo-400
+    text: '#FFFFFF',
+    background: 'rgba(0,0,0,0.7)',
+    border: 'rgba(99,102,241,0.3)',
+    shadow: 'rgba(99,102,241,0.1)',
+  },
+  pink: {
+    primary: '#EC4899', // pink-500
+    secondary: '#F472B6', // pink-400
+    text: '#FFFFFF',
+    background: 'rgba(0,0,0,0.7)',
+    border: 'rgba(236,72,153,0.3)',
+    shadow: 'rgba(236,72,153,0.1)',
+  },
+};
+
 interface EbookSettings {
   apiKey: string;
   prompt: string;
   logo: string | null;
   background: string | null;
-  colorTheme: string;
+  colorTheme: keyof typeof COLOR_THEMES; // Use keys of COLOR_THEMES
   documentMode: string;
 }
 
@@ -460,10 +511,12 @@ const App: React.FC = () => {
         }
         .document-container {
           background-color: white;
-          margin: 20px;
+          width: 100%; /* Ensure it takes full width of WebView */
+          height: 100%; /* Ensure it takes full height of WebView */
           padding: 30px;
           border-radius: 10px;
           box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+          box-sizing: border-box; /* Include padding in width/height */
         }
         h1, h2, h3, h4, h5, h6 {
           color: #222;
@@ -563,17 +616,34 @@ const App: React.FC = () => {
                 <Text style={styles.settingLabel}>
                   {React.createElement(getIconComponent(currentMode.icon), { size: 16, color: '#A78BFA' })} Document Type
                 </Text>
-                <View style={styles.pickerContainer}>
-                  <Picker
-                    selectedValue={settings.documentMode}
-                    onValueChange={(itemValue: string) => updateSettings({ documentMode: itemValue })}
-                    style={styles.picker}
-                    itemStyle={styles.pickerItem}
-                  >
-                    {DOCUMENT_MODES.map((mode) => (
-                      <Picker.Item key={mode.id} label={mode.name} value={mode.id} />
-                    ))}
-                  </Picker>
+                <View style={styles.documentTypeSelectorContainer}>
+                  {DOCUMENT_MODES.map((mode) => {
+                    const IconComponent = getIconComponent(mode.icon);
+                    const isSelected = settings.documentMode === mode.id;
+                    return (
+                      <TouchableOpacity
+                        key={mode.id}
+                        style={[
+                          styles.documentTypeButton,
+                          isSelected && styles.documentTypeButtonSelected,
+                        ]}
+                        onPress={() => updateSettings({ documentMode: mode.id })}
+                      >
+                        <IconComponent
+                          size={32} // Increased icon size
+                          color={isSelected ? COLOR_THEMES[settings.colorTheme].primary : '#D8B4FE80'}
+                        />
+                        <Text
+                          style={[
+                            styles.documentTypeButtonText,
+                            isSelected && { color: COLOR_THEMES[settings.colorTheme].primary, fontWeight: '700' },
+                          ]}
+                        >
+                          {mode.name}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </View>
 
@@ -636,20 +706,21 @@ const App: React.FC = () => {
                 <Text style={styles.settingLabel}>
                   <Palette size={16} color="#A78BFA" /> Color Theme
                 </Text>
-                <View style={styles.pickerContainer}>
-                  <Picker
-                    selectedValue={settings.colorTheme}
-                    onValueChange={(itemValue: string) => updateSettings({ colorTheme: itemValue })}
-                    style={styles.picker}
-                    itemStyle={styles.pickerItem}
-                  >
-                    <Picker.Item label="Purple" value="purple" />
-                    <Picker.Item label="Blue" value="blue" />
-                    <Picker.Item label="Green" value="green" />
-                    <Picker.Item label="Red" value="red" />
-                    <Picker.Item label="Indigo" value="indigo" />
-                    <Picker.Item label="Pink" value="pink" />
-                  </Picker>
+                <View style={styles.colorThemeSelectorContainer}>
+                  {Object.entries(COLOR_THEMES).map(([key, value]) => {
+                    const isSelected = settings.colorTheme === key;
+                    return (
+                      <TouchableOpacity
+                        key={key}
+                        style={[
+                          styles.colorSwatch,
+                          { backgroundColor: value.primary },
+                          isSelected && styles.colorSwatchSelected,
+                        ]}
+                        onPress={() => updateSettings({ colorTheme: key as keyof typeof COLOR_THEMES })}
+                      />
+                    );
+                  })}
                 </View>
               </View>
 
@@ -684,69 +755,68 @@ const App: React.FC = () => {
             </View>
 
             {/* Preview Panel */}
-            <View style={styles.previewPanel}>
-              <View style={styles.tabContainer}>
-                <TouchableOpacity
-                  onPress={() => updateState({ activeTab: 'preview' })}
-                  style={[styles.tabButton, state.activeTab === 'preview' && styles.tabButtonActive]}
-                >
-                  <Eye size={16} color={state.activeTab === 'preview' ? '#A78BFA' : '#D8B4FE80'} />
-                  <Text style={[styles.tabButtonText, state.activeTab === 'preview' && styles.tabButtonTextActive]}>
-                    Preview
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => updateState({ activeTab: 'editor' })}
-                  style={[styles.tabButton, state.activeTab === 'editor' && styles.tabButtonActive]}
-                >
-                  <Edit3 size={16} color={state.activeTab === 'editor' ? '#A78BFA' : '#D8B4FE80'} />
-                  <Text style={[styles.tabButtonText, state.activeTab === 'editor' && styles.tabButtonTextActive]}>
-                    Markdown Editor
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {hasContent && (
-                <View style={styles.downloadButtonsContainer}>
-                  <TouchableOpacity
-                    onPress={handleExportMarkdown}
-                    style={styles.downloadButton}
-                  >
-                    <FileText size={16} color="#FFFFFF" />
-                    <Text style={styles.downloadButtonText}>.md</Text>
-                  </TouchableOpacity>
-                  {/* PDF export is complex for RN, omitting for now */}
-                </View>
-              )}
-
-              {state.activeTab === 'preview' ? (
-                <View style={styles.ebookPreview}>
-                  <WebView
-                    originWhitelist={['*']}
-                    source={{ html: htmlContent }}
-                    style={styles.webView}
-                    containerStyle={styles.webViewContainer}
-                  />
-                </View>
-              ) : (
-                <View style={styles.editorContainer}>
-                  <TextInput
-                    multiline
-                    value={state.markdownContent}
-                    onChangeText={(text) => updateState({ markdownContent: text })}
-                    style={styles.markdownEditor}
-                    textAlignVertical="top"
-                  />
-                  <View style={styles.editorFooter}>
-                    <Text style={styles.editorFooterText}>
-                      Lines: {state.markdownContent.split('\n').length} | Characters: {state.markdownContent.length}
-                    </Text>
-                  </View>
-                </View>
-              )}
+          <View style={styles.previewPanel}>
+            <View style={styles.tabContainer}>
+              <TouchableOpacity
+                onPress={() => updateState({ activeTab: 'preview' })}
+                style={[styles.tabButton, state.activeTab === 'preview' && styles.tabButtonActive]}
+              >
+                <Eye size={16} color={state.activeTab === 'preview' ? '#A78BFA' : '#D8B4FE80'} />
+                <Text style={[styles.tabButtonText, state.activeTab === 'preview' && styles.tabButtonTextActive]}>
+                  Preview
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => updateState({ activeTab: 'editor' })}
+                style={[styles.tabButton, state.activeTab === 'editor' && styles.tabButtonActive]}
+              >
+                <Edit3 size={16} color={state.activeTab === 'editor' ? '#A78BFA' : '#D8B4FE80'} />
+                <Text style={[styles.tabButtonText, state.activeTab === 'editor' && styles.tabButtonTextActive]}>
+                  Markdown Editor
+                </Text>
+              </TouchableOpacity>
             </View>
-          </View>
 
+            {hasContent && (
+              <View style={styles.downloadButtonsContainer}>
+                <TouchableOpacity
+                  onPress={handleExportMarkdown}
+                  style={styles.downloadButton}
+                >
+                  <FileText size={16} color="#FFFFFF" />
+                  <Text style={styles.downloadButtonText}>.md</Text>
+                </TouchableOpacity>
+                {/* PDF export is complex for RN, omitting for now */}
+              </View>
+            )}
+
+            {state.activeTab === 'preview' ? (
+              <View style={styles.ebookPreview}>
+                <WebView
+                  originWhitelist={['*']}
+                  source={{ html: htmlContent }}
+                  style={styles.webView}
+                  containerStyle={styles.webViewContainer}
+                />
+              </View>
+            ) : (
+              <View style={styles.editorContainer}>
+                <TextInput
+                  multiline
+                  value={state.markdownContent}
+                  onChangeText={(text) => updateState({ markdownContent: text })}
+                  style={styles.markdownEditor}
+                  textAlignVertical="top"
+                />
+                <View style={styles.editorFooter}>
+                  <Text style={styles.editorFooterText}>
+                    Lines: {state.markdownContent.split('\n').length} | Characters: {state.markdownContent.length}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
+          </View>
           {/* Export Options */}
           <View style={styles.exportOptionsCard}>
             <Text style={styles.exportOptionsTitle}>
@@ -824,7 +894,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#C084FC', // purple-300
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: 24, // Reduced margin bottom
   },
   currentModeName: {
     fontWeight: '600',
@@ -832,76 +902,83 @@ const styles = StyleSheet.create({
   },
   mainContentCard: {
     backgroundColor: 'rgba(0,0,0,0.4)', // black/40
-    borderRadius: 24,
+    borderRadius: 20, // Slightly smaller border radius
     borderWidth: 1,
     borderColor: 'rgba(139,92,246,0.2)', // purple-500/20
     shadowColor: 'rgba(139,92,246,0.1)', // purple-500/10
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 15,
-    elevation: 8,
-    padding: 24,
-    marginBottom: 32,
+    shadowOffset: { width: 0, height: 8 }, // Slightly smaller shadow offset
+    shadowOpacity: 0.15, // Slightly less shadow opacity
+    shadowRadius: 12, // Slightly smaller shadow radius
+    elevation: 6, // Slightly less elevation
+    padding: 20, // Reduced padding
+    marginBottom: 24, // Reduced margin bottom
   },
   settingsPanel: {
-    marginBottom: 32,
+    marginBottom: 24, // Reduced margin bottom for settings panel
   },
   settingsTitle: {
-    fontSize: 22,
+    fontSize: 20, // Slightly smaller title font size
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: 24,
+    marginBottom: 20, // Reduced margin bottom for settings title
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
   settingSection: {
-    marginBottom: 20,
+    marginBottom: 0, // Removed bottom margin for setting sections
   },
   settingLabel: {
-    fontSize: 14,
+    fontSize: 12, // Slightly smaller label font size
     fontWeight: '500',
     color: '#D8B4FE', // purple-200
-    marginBottom: 8,
+    marginBottom: 5, // Reduced margin bottom for labels
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6, // Reduced gap
   },
   pickerContainer: {
     backgroundColor: 'rgba(0,0,0,0.5)', // black/50
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(139,92,246,0.3)', // purple-500/30
-    // Removed overflow: 'hidden' to see if it helps with Android visibility
+    ...Platform.select({
+      ios: { overflow: 'hidden' },
+      android: { backgroundColor: 'rgba(0,0,0,0.5)' },
+    }),
   },
   picker: {
     height: 50,
     color: '#FFFFFF',
     backgroundColor: 'rgba(0,0,0,0.7)', // Slightly darker background for better contrast
+    ...Platform.select({
+      android: { color: '#FFFFFF' },
+    }),
   },
   pickerItem: {
-    color: '#FFFFFF', // Ensure text color is white
-    // backgroundColor is not directly supported on Android for itemStyle, handled by picker
+    ...Platform.select({
+      android: { color: '#FFFFFF' }, // Ensure text color is white on Android
+    }),
   },
   textInput: {
     width: '100%',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 12, // Reduced padding
+    paddingVertical: 10, // Reduced padding
     backgroundColor: 'rgba(0,0,0,0.5)', // black/50
     borderWidth: 1,
     borderColor: 'rgba(139,92,246,0.3)', // purple-500/30
-    borderRadius: 12,
+    borderRadius: 10, // Slightly smaller border radius
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 14, // Slightly smaller font size
   },
   textArea: {
-    height: 100,
+    height: 80, // Reduced height for text area
     textAlignVertical: 'top',
   },
   helperText: {
-    fontSize: 12,
+    fontSize: 11, // Smaller font size
     color: '#C084FCB0', // purple-300/70
-    marginTop: 4,
+    marginTop: 3, // Reduced margin top
   },
   linkText: {
     color: '#A78BFA', // purple-400
@@ -909,39 +986,39 @@ const styles = StyleSheet.create({
   },
   uploadButton: {
     backgroundColor: '#8B5CF6', // purple-600
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingVertical: 8, // Reduced padding
+    paddingHorizontal: 12, // Reduced padding
+    borderRadius: 10, // Slightly smaller border radius
     alignItems: 'center',
     justifyContent: 'center',
   },
   uploadButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 13, // Slightly smaller font size
     fontWeight: '600',
   },
   uploadedImage: {
     width: '100%',
-    height: 150,
-    borderRadius: 12,
-    marginTop: 12,
+    height: 120, // Reduced height
+    borderRadius: 10, // Slightly smaller border radius
+    marginTop: 10, // Reduced margin top
     resizeMode: 'contain',
   },
   generationButtonsContainer: {
-    marginTop: 24,
-    gap: 12,
+    marginTop: 20, // Reduced margin top
+    gap: 10, // Reduced gap
   },
   generateButton: {
     width: '100%',
     backgroundColor: '#8B5CF6', // purple-600
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 16,
+    paddingVertical: 14, // Reduced padding
+    paddingHorizontal: 20, // Reduced padding
+    borderRadius: 14, // Slightly smaller border radius
     shadowColor: '#A78BFA',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 8 }, // Slightly smaller shadow offset
+    shadowOpacity: 0.2, // Slightly less shadow opacity
+    shadowRadius: 8, // Slightly smaller shadow radius
+    elevation: 4, // Slightly less elevation
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -953,20 +1030,20 @@ const styles = StyleSheet.create({
   },
   generateButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 16, // Slightly smaller font size
     fontWeight: '600',
   },
   continueButton: {
     width: '100%',
     backgroundColor: '#4F46E5', // indigo-600
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 16,
+    paddingVertical: 10, // Reduced padding
+    paddingHorizontal: 20, // Reduced padding
+    borderRadius: 14, // Slightly smaller border radius
     shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 8 }, // Slightly smaller shadow offset
+    shadowOpacity: 0.2, // Slightly less shadow opacity
+    shadowRadius: 8, // Slightly smaller shadow radius
+    elevation: 4, // Slightly less elevation
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -974,21 +1051,22 @@ const styles = StyleSheet.create({
   },
   continueButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 14, // Slightly smaller font size
     fontWeight: '600',
   },
   previewPanel: {
-    height: 600, // Fixed height for preview/editor
+    flex: 1, /* Allow preview panel to take available height */
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    borderRadius: 20, // Slightly smaller border radius
     borderWidth: 1,
     borderColor: 'rgba(139,92,246,0.2)', // purple-500/20
     shadowColor: 'rgba(139,92,246,0.1)',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 15,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 8 }, // Slightly smaller shadow offset
+    shadowOpacity: 0.15, // Slightly less shadow opacity
+    shadowRadius: 12, // Slightly smaller shadow radius
+    elevation: 6, // Slightly less elevation
     overflow: 'hidden',
+    minHeight: 300, /* Ensure a minimum height for visibility */
   },
   tabContainer: {
     flexDirection: 'row',
@@ -1018,31 +1096,37 @@ const styles = StyleSheet.create({
   downloadButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    padding: 12,
+    padding: 10, // Reduced padding
     backgroundColor: '#F9FAFB',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
   downloadButton: {
     backgroundColor: 'rgba(75,85,99,0.5)', // gray-700/50
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    paddingVertical: 6, // Reduced padding
+    paddingHorizontal: 12, // Reduced padding
+    borderRadius: 6, // Slightly smaller border radius
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6, // Reduced gap
     borderWidth: 1,
     borderColor: 'rgba(75,85,99,0.3)', // gray-600/30
   },
   downloadButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 12, // Reduced font size
     fontWeight: '500',
   },
   ebookPreview: {
     flex: 1,
     backgroundColor: '#FFFFFF',
-    // Background image handled by WebView HTML
+    alignSelf: 'center', /* Center the preview horizontally */
+    width: '90%', /* Use percentage for responsiveness */
+    maxWidth: 600, /* Adjusted for a wider document preview on mobile */
+    aspectRatio: 8.5 / 11, /* Standard letter paper aspect ratio for portrait */
+    overflow: 'hidden',
+    borderRadius: 10, /* Add some border radius to the inner preview */
+    /* Removed marginVertical to reduce vertical spacing */
   },
   webView: {
     flex: 1,
@@ -1057,9 +1141,9 @@ const styles = StyleSheet.create({
   },
   markdownEditor: {
     flex: 1,
-    padding: 16,
-    fontSize: 14,
-    lineHeight: 22,
+    padding: 12, // Reduced padding
+    fontSize: 13, // Reduced font size
+    lineHeight: 20, // Reduced line height
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     color: '#333',
   },
@@ -1076,31 +1160,31 @@ const styles = StyleSheet.create({
   },
   exportOptionsCard: {
     backgroundColor: 'rgba(0,0,0,0.4)', // black/40
-    borderRadius: 24,
+    borderRadius: 20, // Slightly smaller border radius
     borderWidth: 1,
     borderColor: 'rgba(139,92,246,0.2)', // purple-500/20
     shadowColor: 'rgba(139,92,246,0.1)', // purple-500/10
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 15,
-    elevation: 8,
-    padding: 24,
-    marginBottom: 32,
+    shadowOffset: { width: 0, height: 8 }, // Slightly smaller shadow offset
+    shadowOpacity: 0.15, // Slightly less shadow opacity
+    shadowRadius: 12, // Slightly smaller shadow radius
+    elevation: 6, // Slightly less elevation
+    padding: 20, // Reduced padding
+    marginBottom: 24, // Reduced margin bottom
   },
   exportOptionsTitle: {
-    fontSize: 18,
+    fontSize: 16, // Reduced font size
     fontWeight: '600',
     color: '#FFFFFF',
-    marginBottom: 16,
+    marginBottom: 12, // Reduced margin bottom
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
   exportButton: {
     backgroundColor: 'rgba(75,85,99,0.5)', // gray-700/50
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 16,
+    paddingVertical: 10, // Reduced padding
+    paddingHorizontal: 14, // Reduced padding
+    borderRadius: 14, // Slightly smaller border radius
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1113,22 +1197,85 @@ const styles = StyleSheet.create({
   },
   exportButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 13, // Reduced font size
     fontWeight: '500',
   },
   exportHelperText: {
-    fontSize: 12,
+    fontSize: 11, // Reduced font size
     color: '#C084FCB0', // purple-300/70
     textAlign: 'center',
-    marginTop: 12,
+    marginTop: 10, // Reduced margin top
   },
   footer: {
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12, // Reduced margin bottom
   },
   footerText: {
-    fontSize: 12,
+    fontSize: 11, // Reduced font size
     color: '#C084FC80', // purple-300/60
+  },
+  documentTypeSelectorContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 0, // Reduced margin top
+    marginBottom: 0,
+    gap: 0,
+  },
+  documentTypeButton: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingVertical: 16, // Increased padding
+    paddingHorizontal: 0,
+    borderRadius: 0,
+    borderWidth: 0,
+    alignItems: 'center',
+    width: (width - 32) / 3,
+    aspectRatio: 1,
+    justifyContent: 'center',
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+  documentTypeButtonSelected: {
+    borderColor: 'transparent',
+    shadowColor: 'transparent',
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
+  },
+  documentTypeButtonText: {
+    color: '#D8B4FE80',
+    fontSize: 12, // Increased font size
+    fontWeight: '500',
+    marginTop: 8, // Adjusted margin top
+    textAlign: 'center',
+  },
+  colorThemeSelectorContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 8,
+    paddingHorizontal: 10,
+  },
+  colorSwatch: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  colorSwatchSelected: {
+    borderColor: '#FFFFFF', // White border for selected swatch
+    shadowColor: '#FFFFFF',
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 5,
   },
 });
 

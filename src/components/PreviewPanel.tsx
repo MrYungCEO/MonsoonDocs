@@ -29,10 +29,7 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
   useEffect(() => {
     marked.setOptions({
       breaks: true,
-      gfm: true,
-      headerIds: false,
-      mangle: false,
-      sanitize: false
+      gfm: true
     });
   }, []);
 
@@ -340,15 +337,20 @@ Regular paragraph text here.`;
         <div
           id="ebook-preview"
           ref={previewRef}
-          className="min-h-[600px] bg-white border border-purple-500/20 rounded-2xl overflow-hidden shadow-2xl"
+          className="bg-white border border-purple-500/20 rounded-2xl overflow-hidden shadow-2xl mx-auto"
           style={{
             backgroundImage: settings.background ? `url(${settings.background})` : undefined,
             backgroundSize: 'cover',
-            backgroundPosition: 'center'
+            backgroundPosition: 'center',
+            width: '90%', /* Use percentage for responsiveness */
+            maxWidth: '400px', /* Adjusted for a more pronounced vertical rectangle on mobile */
+            maxHeight: '90vh', /* Ensure it doesn't overflow vertically on small screens */
+            aspectRatio: '8.5 / 11', /* Standard letter paper aspect ratio for portrait */
+            margin: '0 auto' /* Center the preview horizontally */
           }}
         >
-          <div className="bg-white m-8 rounded-xl shadow-lg overflow-hidden">
-            <div className="p-12">
+          <div className="bg-white m-8 rounded-xl shadow-lg overflow-hidden h-[calc(100%-4rem)]"> {/* Adjust margin and padding as needed */}
+            <div className="p-12 h-full overflow-y-auto">
               {/* Logo Section */}
               {settings.logo && (
                 <div className="text-center mb-8">
@@ -424,9 +426,6 @@ Regular paragraph text here.`;
                 contextmenu: true,
                 links: true,
                 colorDecorators: true,
-                lightbulb: {
-                  enabled: true
-                },
                 suggest: {
                   showKeywords: true,
                   showSnippets: true
