@@ -45,31 +45,13 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
     if (!content) return content;
     
     let cleaned = content.trim();
-    
-    // First, check if the content contains a markdown code block
-    const markdownBlockRegex = /```(?:markdown)?\s*([\s\S]*?)\s*```/i;
-    const markdownMatch = cleaned.match(markdownBlockRegex);
-    
-    if (markdownMatch) {
-      // Extract content from the code block
-      cleaned = markdownMatch[1].trim();
-    } else {
-      // Remove common AI response prefixes if no code block found
-      cleaned = cleaned
-        .replace(/^.*?(?:here\s+is|okay,?\s*here\s+is).*?(?:ebook|guide|content).*?(?:formatted\s+in\s+markdown|in\s+markdown\s+format|as\s+requested)[:\.]?\s*/i, '')
-        .replace(/^.*?formatted\s+in\s+markdown.*?[:\.]?\s*/i, '')
-        .replace(/^.*?markdown\s+format.*?[:\.]?\s*/i, '')
-        .trim();
-    }
-    
-    // If the cleaned content still starts with non-markdown text, try to find the first heading
-    if (cleaned && !cleaned.startsWith('#')) {
-      const firstHeadingMatch = cleaned.match(/^.*?(#\s+.*)$/m);
-      if (firstHeadingMatch) {
-        cleaned = firstHeadingMatch[1] + cleaned.substring(firstHeadingMatch.index! + firstHeadingMatch[0].length);
-      }
-    }
-    
+
+    // Remove common AI conversational preambles and markdown code block delimiters
+    // This regex targets phrases like "Here is your document:", "Here's the content:", etc.,
+    // and also removes leading/trailing triple backticks (```) with optional language specifier.
+    cleaned = cleaned.replace(/^(?:(?:Here|Okay),?\s*(?:is|are)?\s*(?:your|the)?\s*(?:generated)?\s*(?:ebook|guide|document|content|markdown|text|response|output)[:.]?\s*|```(?:markdown)?\s*|```\s*)/i, '').trim();
+    cleaned = cleaned.replace(/(```\s*)$/, '').trim(); // Remove trailing ```
+
     return cleaned;
   };
 
@@ -140,20 +122,6 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({
     }
     setShowPdfOptions(false);
   };
-
-  // Test markdown for when no content exists
-  const testMarkdown = `# Test Heading
-## Subheading
-This is **bold text** and *italic text*.
-
-### List Example:
-- Item one
-- Item two
-- Item three
-
-> This is a blockquote
-
-Regular paragraph text here.`;
 
   return (
     <div className="h-full">
@@ -366,7 +334,7 @@ Regular paragraph text here.`;
               <div
                 className="ebook-content"
                 dangerouslySetInnerHTML={{ 
-                  __html: renderMarkdown(state.markdownContent || testMarkdown) 
+                  __html: renderMarkdown(state.markdownContent) 
                 }}
               />
             </div>
