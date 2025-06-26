@@ -6,6 +6,7 @@ import { marked } from 'marked';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as ImagePicker from 'expo-image-picker';
+import * as InAppPurchases from 'expo-in-app-purchases';
 import { CloudLightning, Sparkles, Download, Edit3, Eye, Key, MessageSquare, Palette, BookOpen, FileText, PenTool, Heart, Briefcase, Plus, FileDown, Settings, Image as ImageIcon } from 'lucide-react-native';
 
 // Re-define DOCUMENT_MODES and EbookSettings/EbookState interfaces for the mobile app
@@ -216,6 +217,10 @@ interface EbookState {
   isGenerating: boolean;
   markdownContent: string;
   activeTab: 'preview' | 'editor';
+  isPremium: boolean;
+  showPaywall: boolean;
+  products: any[]; // Temporarily set to any to resolve type errors
+  purchaseHistory: any[]; // Temporarily set to any to resolve type errors
 }
 
 interface GeminiResponse {
@@ -303,6 +308,12 @@ The content should be substantial enough for a professional ebook (aim for compr
 
 const { width } = Dimensions.get('window');
 
+const PRODUCT_ID = Platform.select({
+  ios: 'com.yourcompany.monsoondocs.premium', // Replace with your actual iOS product ID
+  android: 'com.yourcompany.monsoondocs.premium', // Replace with your actual Android product ID
+  default: 'com.yourcompany.monsoondocs.premium',
+});
+
 const App: React.FC = () => {
   const [settings, setSettings] = useState<EbookSettings>({
     apiKey: '',
@@ -316,8 +327,142 @@ const App: React.FC = () => {
   const [state, setState] = useState<EbookState>({
     isGenerating: false,
     markdownContent: '',
-    activeTab: 'preview'
+    activeTab: 'preview',
+    isPremium: false,
+    showPaywall: false,
+    products: [],
+    purchaseHistory: [],
   });
+
+  const [showIntroPage, setShowIntroPage] = useState(true); // New state for intro page
+
+  useEffect(() => {
+    // Set up purchase listener
+    // expo-in-app-purchases uses a single listener for both updates and errors
+    InAppPurchases.setPurchaseListener(handlePurchaseUpdate);
+
+    // Initialize In-App Purchases and fetch products
+    initializeInAppPurchases();
+
+    return () => {
+      // Clean up listener
+      InAppPurchases.setPurchaseListener(() => {}); // Set to a no-op function on unmount
+    };
+  }, []);
+
+  const initializeInAppPurchases = async () => {
+    try {
+      // connectAsync does not return responseCode directly, it just connects.
+      await InAppPurchases.connectAsync();
+      await getProducts();
+      await getPurchaseHistory();
+    } catch (error) {
+      console.error('Error connecting to In-App Purchases:', error);
+    }
+  };
+
+  const getProducts = async () => {
+    try {
+      const { responseCode, results } = await InAppPurchases.getProductsAsync([PRODUCT_ID]);
+      if (responseCode === InAppPurchases.IAPResponseCode.OK && results) {
+        setState(prev => ({ ...prev, products: results }));
+      } else {
+        console.warn('Failed to fetch products with code:', responseCode);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    }
+  };
+
+  const getPurchaseHistory = async () => {
+    try {
+      const { responseCode, results } = await InAppPurchases.getPurchaseHistoryAsync();
+      if (responseCode === InAppPurchases.IAPResponseCode.OK && results) {
+        setState(prev => ({ ...prev, purchaseHistory: results }));
+        // Check if any active subscription exists
+        const hasActiveSubscription = results.some((purchase: any) => // Use any for purchase type
+          purchase.productId === PRODUCT_ID && purchase.acknowledged && !purchase.isCanceled // Reverted to isCanceled
+        );
+        setState(prev => ({ ...prev, isPremium: hasActiveSubscription }));
+        if (hasActiveSubscription) {
+          setShowIntroPage(false); // If premium, hide intro page
+        }
+      } else {
+        console.warn('Failed to fetch purchase history with code:', responseCode);
+      }
+    } catch (error) {
+      console.error('Error fetching purchase history:', error);
+    }
+  };
+
+  // handlePurchaseUpdate now handles both updates and errors
+  const handlePurchaseUpdate = async (purchase: any) => { // Use any for purchase type
+    if (purchase.responseCode === InAppPurchases.IAPResponseCode.OK) {
+      if (purchase.acknowledged) {
+        // Purchase already acknowledged, likely from history
+        setState(prev => ({ ...prev, isPremium: true, showPaywall: false }));
+        alert('Subscription activated!');
+      } else {
+        // New purchase, acknowledge it
+        try {
+          await InAppPurchases.finishTransactionAsync(purchase, true); // Acknowledge and consume
+          setState(prev => ({ ...prev, isPremium: true, showPaywall: false }));
+          alert('Subscription activated!');
+        } catch (error) {
+          console.error('Error acknowledging purchase:', error);
+          alert('Failed to activate subscription. Please try restoring purchases.');
+        }
+      }
+    } else if (purchase.responseCode === InAppPurchases.IAPResponseCode.USER_CANCELED) {
+      alert('Purchase cancelled.');
+    } else {
+      // Handle other error codes
+      alert(`Purchase failed: ${purchase.responseCode}`);
+    }
+  };
+
+  const requestPurchase = async () => {
+    if (state.products.length === 0) {
+      alert('Product information not loaded yet. Please try again in a moment.');
+      await getProducts(); // Try fetching products again
+      return;
+    }
+    try {
+      const product = state.products.find((p: any) => p.productId === PRODUCT_ID); // Use any for product type
+      if (product) {
+        await InAppPurchases.purchaseItemAsync(product.productId);
+      } else {
+        alert('Subscription product not found. Please ensure it is configured correctly in app stores.');
+      }
+    } catch (error) {
+      console.error('Error requesting purchase:', error);
+      alert('Failed to initiate purchase.');
+    }
+  };
+
+  const restorePurchases = async () => {
+    try {
+      const { responseCode, results } = await InAppPurchases.getPurchaseHistoryAsync(); // Use getPurchaseHistoryAsync for restore
+      if (responseCode === InAppPurchases.IAPResponseCode.OK && results && results.length > 0) {
+        const hasActiveSubscription = results.some((purchase: any) => // Use any for purchase type
+          purchase.productId === PRODUCT_ID && purchase.acknowledged // Simplified check
+        );
+        if (hasActiveSubscription) {
+          setState(prev => ({ ...prev, isPremium: true, showPaywall: false }));
+          alert('Purchases restored successfully! Your premium features are now active.');
+        } else {
+          alert('No active subscriptions found to restore.');
+        }
+      } else if (responseCode === InAppPurchases.IAPResponseCode.OK && (!results || results.length === 0)) {
+        alert('No purchases found to restore.');
+      } else {
+        alert(`Failed to restore purchases: ${responseCode}`);
+      }
+    } catch (error) {
+      console.error('Error restoring purchases:', error);
+      alert('An error occurred while restoring purchases.');
+    }
+  };
 
   const updateSettings = (newSettings: Partial<EbookSettings>) => {
     setSettings(prev => ({ ...prev, ...newSettings }));
@@ -358,25 +503,30 @@ const App: React.FC = () => {
   };
 
   const handleGenerate = async () => {
+    if (!state.isPremium) {
+      updateState({ showPaywall: true });
+      return;
+    }
+
     if (!settings.apiKey.trim()) {
       alert('Please enter your Google Gemini API key');
       return;
     }
-    
+
     if (!settings.prompt.trim()) {
       alert('Please describe the document you want to create');
       return;
     }
 
     updateState({ isGenerating: true });
-    
+
     try {
       const currentMode = DOCUMENT_MODES.find(mode => mode.id === settings.documentMode) || DOCUMENT_MODES[0];
       const content = await generateEbook(settings.apiKey, settings.prompt, currentMode.systemPrompt);
-      updateState({ 
-        markdownContent: content, 
+      updateState({
+        markdownContent: content,
         activeTab: 'preview',
-        isGenerating: false 
+        isGenerating: false
       });
     } catch (error) {
       console.error('Error generating document:', error);
@@ -386,28 +536,33 @@ const App: React.FC = () => {
   };
 
   const handleGenerateNew = async () => {
+    if (!state.isPremium) {
+      updateState({ showPaywall: true });
+      return;
+    }
+
     if (!settings.apiKey.trim()) {
       alert('Please enter your Google Gemini API key');
       return;
     }
-    
+
     if (!settings.prompt.trim()) {
       alert('Please describe the document you want to create');
       return;
     }
 
-    updateState({ 
+    updateState({
       isGenerating: true,
       markdownContent: ''
     });
-    
+
     try {
       const currentMode = DOCUMENT_MODES.find(mode => mode.id === settings.documentMode) || DOCUMENT_MODES[0];
       const content = await generateEbook(settings.apiKey, settings.prompt, currentMode.systemPrompt);
-      updateState({ 
-        markdownContent: content, 
+      updateState({
+        markdownContent: content,
         activeTab: 'preview',
-        isGenerating: false 
+        isGenerating: false
       });
     } catch (error) {
       console.error('Error generating document:', error);
@@ -623,219 +778,275 @@ const App: React.FC = () => {
             Current Mode: <Text style={styles.currentModeName}>{currentMode.name}</Text> - {currentMode.description}
           </Text>
 
-          {/* Main Content */}
-          <View style={styles.mainContentCard}>
-            {/* Settings Panel */}
-            <View style={styles.settingsPanel}>
-              <Text style={styles.settingsTitle}>
-                <CloudLightning size={24} color="#A78BFA" /> Settings
+          {/* Intro Page for Non-Premium Users */}
+          {!state.isPremium && showIntroPage ? (
+            <View style={styles.introPageCard}>
+              <Text style={styles.introTitle}>Welcome to MonsoonDocs!</Text>
+              <Text style={styles.introDescription}>
+                Unlock the full potential of AI-powered document generation.
+                Subscribe to MonsoonDocs Premium for unlimited access and all document types.
               </Text>
-              
-              <View style={styles.settingSection}>
-                <Text style={styles.settingLabel}>
-                  {React.createElement(getIconComponent(currentMode.icon), { size: 16, color: '#A78BFA' })} Document Type
-                </Text>
-                <View style={styles.documentTypeSelectorContainer}>
-                  {DOCUMENT_MODES.map((mode) => {
-                    const IconComponent = getIconComponent(mode.icon);
-                    const isSelected = settings.documentMode === mode.id;
-                    return (
-                      <TouchableOpacity
-                        key={mode.id}
-                        style={[
-                          styles.documentTypeButton,
-                          isSelected && styles.documentTypeButtonSelected,
-                        ]}
-                        onPress={() => updateSettings({ documentMode: mode.id })}
-                      >
-                        <IconComponent
-                          size={32} // Increased icon size
-                          color={isSelected ? COLOR_THEMES[settings.colorTheme].primary : '#D8B4FE80'}
-                        />
-                        <Text
-                          style={[
-                            styles.documentTypeButtonText,
-                            isSelected && { color: COLOR_THEMES[settings.colorTheme].primary, fontWeight: '700' },
-                          ]}
-                        >
-                          {mode.name}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+              <TouchableOpacity style={styles.introSubscribeButton} onPress={() => {
+                updateState({ showPaywall: true });
+                setShowIntroPage(false); // Hide intro page when paywall is shown
+              }}>
+                <Text style={styles.introSubscribeButtonText}>Start Free Trial & Subscribe</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.introExploreButton} onPress={() => setShowIntroPage(false)}>
+                <Text style={styles.introExploreButtonText}>Explore Limited Features</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              {/* Paywall Modal */}
+              {state.showPaywall && (
+                <View style={styles.paywallOverlay}>
+                  <View style={styles.paywallModal}>
+                    <Text style={styles.paywallTitle}>Unlock Premium Features</Text>
+                    <Text style={styles.paywallDescription}>
+                      Generate unlimited documents, access all document types, and more with MonsoonDocs Premium.
+                    </Text>
+                    {state.products.length > 0 ? (
+                      state.products.map(product => (
+                        <View key={product.productId} style={styles.productInfo}>
+                          <Text style={styles.productTitle}>{product.title}</Text>
+                          <Text style={styles.productPrice}>
+                            {product.price} / {product.subscriptionPeriodUnit}
+                            {product.freeTrialPeriod && ` with ${product.freeTrialPeriod} free trial`}
+                          </Text>
+                          <TouchableOpacity style={styles.subscribeButton} onPress={requestPurchase}>
+                            <Text style={styles.subscribeButtonText}>Subscribe Now</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ))
+                    ) : (
+                      <ActivityIndicator size="large" color="#A78BFA" />
+                    )}
+                    <TouchableOpacity style={styles.restoreButton} onPress={restorePurchases}>
+                      <Text style={styles.restoreButtonText}>Restore Purchases</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.closePaywallButton} onPress={() => updateState({ showPaywall: false })}>
+                      <Text style={styles.closePaywallButtonText}>No Thanks</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
+              )}
 
-              <View style={styles.settingSection}>
-                <Text style={styles.settingLabel}>
-                  <Key size={16} color="#A78BFA" /> Google Gemini API Key
-                </Text>
-                <TextInput
-                  secureTextEntry
-                  value={settings.apiKey}
-                  onChangeText={(text) => updateSettings({ apiKey: text })}
-                  placeholder="Enter your API key"
-                  placeholderTextColor="#A78BFA80"
-                  style={styles.textInput}
-                />
-                <Text style={styles.helperText}>
-                  Get your API key from{' '}
-                  <Text style={styles.linkText} onPress={() => Linking.openURL('https://ai.google.dev/')}>
-                    Google AI Studio
+              {/* Main Content */}
+              <View style={styles.mainContentCard}>
+                {/* Settings Panel */}
+                <View style={styles.settingsPanel}>
+                  <Text style={styles.settingsTitle}>
+                    <CloudLightning size={24} color="#A78BFA" /> Settings
                   </Text>
-                </Text>
-              </View>
 
-              <View style={styles.settingSection}>
-                <Text style={styles.settingLabel}>
-                  <MessageSquare size={16} color="#A78BFA" /> {currentMode.name} Topic
-                </Text>
-                <TextInput
-                  multiline
-                  numberOfLines={4}
-                  value={settings.prompt}
-                  onChangeText={(text) => updateSettings({ prompt: text })}
-                  placeholder={currentMode.placeholderPrompt}
-                  placeholderTextColor="#A78BFA80"
-                  style={[styles.textInput, styles.textArea]}
-                />
-              </View>
+                  <View style={styles.settingSection}>
+                    <Text style={styles.settingLabel}>
+                      {React.createElement(getIconComponent(currentMode.icon), { size: 16, color: '#A78BFA' })} Document Type
+                    </Text>
+                    <View style={styles.documentTypeSelectorContainer}>
+                      {DOCUMENT_MODES.map((mode) => {
+                        const IconComponent = getIconComponent(mode.icon);
+                        const isSelected = settings.documentMode === mode.id;
+                        return (
+                          <TouchableOpacity
+                            key={mode.id}
+                            style={[
+                              styles.documentTypeButton,
+                              isSelected && styles.documentTypeButtonSelected,
+                            ]}
+                            onPress={() => updateSettings({ documentMode: mode.id })}
+                          >
+                            <IconComponent
+                              size={32} // Increased icon size
+                              color={isSelected ? COLOR_THEMES[settings.colorTheme].primary : '#D8B4FE80'}
+                            />
+                            <Text
+                              style={[
+                                styles.documentTypeButtonText,
+                                isSelected && { color: COLOR_THEMES[settings.colorTheme].primary, fontWeight: '700' },
+                              ]}
+                            >
+                              {mode.name}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
 
-              <View style={styles.settingSection}>
-                <Text style={styles.settingLabel}>
-                  <ImageIcon size={16} color="#A78BFA" /> Upload Logo (Optional)
-                </Text>
-                <TouchableOpacity onPress={handleLogoUpload} style={styles.uploadButton}>
-                  <Text style={styles.uploadButtonText}>Choose Image</Text>
-                </TouchableOpacity>
-                {settings.logo && <Image source={{ uri: settings.logo }} style={styles.uploadedImage} />}
-              </View>
-
-              <View style={styles.settingSection}>
-                <Text style={styles.settingLabel}>
-                  <ImageIcon size={16} color="#A78BFA" /> Background Image (Optional)
-                </Text>
-                <TouchableOpacity onPress={handleBackgroundUpload} style={styles.uploadButton}>
-                  <Text style={styles.uploadButtonText}>Choose Image</Text>
-                </TouchableOpacity>
-                {settings.background && <Image source={{ uri: settings.background }} style={styles.uploadedImage} />}
-              </View>
-
-              <View style={styles.settingSection}>
-                <Text style={styles.settingLabel}>
-                  <Palette size={16} color="#A78BFA" /> Color Theme
-                </Text>
-                <View style={styles.colorThemeSelectorContainer}>
-                  {Object.entries(COLOR_THEMES).map(([key, value]) => {
-                    const isSelected = settings.colorTheme === key;
-                    return (
-                      <TouchableOpacity
-                        key={key}
-                        style={[
-                          styles.colorSwatch,
-                          { backgroundColor: value.primary },
-                          isSelected && styles.colorSwatchSelected,
-                        ]}
-                        onPress={() => updateSettings({ colorTheme: key as keyof typeof COLOR_THEMES })}
-                      />
-                    );
-                  })}
-                </View>
-              </View>
-
-              <View style={styles.generationButtonsContainer}>
-                <TouchableOpacity
-                  onPress={hasContent ? handleGenerateNew : handleGenerate}
-                  disabled={state.isGenerating}
-                  style={[styles.generateButton, state.isGenerating && styles.generateButtonDisabled]}
-                >
-                  {state.isGenerating ? (
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                  ) : (
-                    <>
-                      {hasContent ? <Plus size={20} color="#FFFFFF" /> : <CloudLightning size={20} color="#FFFFFF" />}
-                      <Text style={styles.generateButtonText}>
-                        {hasContent ? `Generate New ${currentMode.name}` : `Generate ${currentMode.name}`}
+                  <View style={styles.settingSection}>
+                    <Text style={styles.settingLabel}>
+                      <Key size={16} color="#A78BFA" /> Google Gemini API Key
+                    </Text>
+                    <TextInput
+                      secureTextEntry
+                      value={settings.apiKey}
+                      onChangeText={(text) => updateSettings({ apiKey: text })}
+                      placeholder="Enter your API key"
+                      placeholderTextColor="#A78BFA80"
+                      style={styles.textInput}
+                    />
+                    <Text style={styles.helperText}>
+                      Get your API key from{' '}
+                      <Text style={styles.linkText} onPress={() => Linking.openURL('https://ai.google.dev/')}>
+                        Google AI Studio
                       </Text>
-                    </>
+                    </Text>
+                  </View>
+
+                  <View style={styles.settingSection}>
+                    <Text style={styles.settingLabel}>
+                      <MessageSquare size={16} color="#A78BFA" /> {currentMode.name} Topic
+                    </Text>
+                    <TextInput
+                      multiline
+                      numberOfLines={4}
+                      value={settings.prompt}
+                      onChangeText={(text) => updateSettings({ prompt: text })}
+                      placeholder={currentMode.placeholderPrompt}
+                      placeholderTextColor="#A78BFA80"
+                      style={[styles.textInput, styles.textArea]}
+                    />
+                  </View>
+
+                  <View style={styles.settingSection}>
+                    <Text style={styles.settingLabel}>
+                      <ImageIcon size={16} color="#A78BFA" /> Upload Logo (Optional)
+                    </Text>
+                    <TouchableOpacity onPress={handleLogoUpload} style={styles.uploadButton}>
+                      <Text style={styles.uploadButtonText}>Choose Image</Text>
+                    </TouchableOpacity>
+                    {settings.logo && <Image source={{ uri: settings.logo }} style={styles.uploadedImage} />}
+                  </View>
+
+                  <View style={styles.settingSection}>
+                    <Text style={styles.settingLabel}>
+                      <ImageIcon size={16} color="#A78BFA" /> Background Image (Optional)
+                    </Text>
+                    <TouchableOpacity onPress={handleBackgroundUpload} style={styles.uploadButton}>
+                      <Text style={styles.uploadButtonText}>Choose Image</Text>
+                    </TouchableOpacity>
+                    {settings.background && <Image source={{ uri: settings.background }} style={styles.uploadedImage} />}
+                  </View>
+
+                  <View style={styles.settingSection}>
+                    <Text style={styles.settingLabel}>
+                      <Palette size={16} color="#A78BFA" /> Color Theme
+                    </Text>
+                    <View style={styles.colorThemeSelectorContainer}>
+                      {Object.entries(COLOR_THEMES).map(([key, value]) => {
+                        const isSelected = settings.colorTheme === key;
+                        return (
+                          <TouchableOpacity
+                            key={key}
+                            style={[
+                              styles.colorSwatch,
+                              { backgroundColor: value.primary },
+                              isSelected && styles.colorSwatchSelected,
+                            ]}
+                            onPress={() => updateSettings({ colorTheme: key as keyof typeof COLOR_THEMES })}
+                          />
+                        );
+                      })}
+                    </View>
+                  </View>
+
+                  <View style={styles.generationButtonsContainer}>
+                    <TouchableOpacity
+                      onPress={hasContent ? handleGenerateNew : handleGenerate}
+                      disabled={state.isGenerating}
+                      style={[styles.generateButton, state.isGenerating && styles.generateButtonDisabled]}
+                    >
+                      {state.isGenerating ? (
+                        <ActivityIndicator color="#FFFFFF" size="small" />
+                      ) : (
+                        <>
+                          {hasContent ? <Plus size={20} color="#FFFFFF" /> : <CloudLightning size={20} color="#FFFFFF" />}
+                          <Text style={styles.generateButtonText}>
+                            {hasContent ? `Generate New ${currentMode.name}` : `Generate ${currentMode.name}`}
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+
+                    {hasContent && !state.isGenerating && (
+                      <TouchableOpacity
+                        onPress={handleGenerate}
+                        style={styles.continueButton}
+                      >
+                        <CloudLightning size={16} color="#FFFFFF" />
+                        <Text style={styles.continueButtonText}>Continue/Extend Content</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+
+                {/* Preview Panel */}
+                <View style={styles.previewPanel}>
+                  <View style={styles.tabContainer}>
+                    <TouchableOpacity
+                      onPress={() => updateState({ activeTab: 'preview' })}
+                      style={[styles.tabButton, state.activeTab === 'preview' && styles.tabButtonActive]}
+                    >
+                      <Eye size={16} color={state.activeTab === 'preview' ? '#A78BFA' : '#D8B4FE80'} />
+                      <Text style={[styles.tabButtonText, state.activeTab === 'preview' && styles.tabButtonTextActive]}>
+                        Preview
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => updateState({ activeTab: 'editor' })}
+                      style={[styles.tabButton, state.activeTab === 'editor' && styles.tabButtonActive]}
+                    >
+                      <Edit3 size={16} color={state.activeTab === 'editor' ? '#A78BFA' : '#D8B4FE80'} />
+                      <Text style={[styles.tabButtonText, state.activeTab === 'editor' && styles.tabButtonTextActive]}>
+                        Markdown Editor
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {hasContent && (
+                    <View style={styles.downloadButtonsContainer}>
+                      <TouchableOpacity
+                        onPress={handleExportMarkdown}
+                        style={styles.downloadButton}
+                      >
+                        <FileText size={16} color="#FFFFFF" />
+                        <Text style={styles.downloadButtonText}>.md</Text>
+                      </TouchableOpacity>
+                      {/* PDF export is complex for RN, omitting for now */}
+                    </View>
                   )}
-                </TouchableOpacity>
 
-                {hasContent && !state.isGenerating && (
-                  <TouchableOpacity
-                    onPress={handleGenerate}
-                    style={styles.continueButton}
-                  >
-                    <CloudLightning size={16} color="#FFFFFF" />
-                    <Text style={styles.continueButtonText}>Continue/Extend Content</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
-
-            {/* Preview Panel */}
-          <View style={styles.previewPanel}>
-            <View style={styles.tabContainer}>
-              <TouchableOpacity
-                onPress={() => updateState({ activeTab: 'preview' })}
-                style={[styles.tabButton, state.activeTab === 'preview' && styles.tabButtonActive]}
-              >
-                <Eye size={16} color={state.activeTab === 'preview' ? '#A78BFA' : '#D8B4FE80'} />
-                <Text style={[styles.tabButtonText, state.activeTab === 'preview' && styles.tabButtonTextActive]}>
-                  Preview
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => updateState({ activeTab: 'editor' })}
-                style={[styles.tabButton, state.activeTab === 'editor' && styles.tabButtonActive]}
-              >
-                <Edit3 size={16} color={state.activeTab === 'editor' ? '#A78BFA' : '#D8B4FE80'} />
-                <Text style={[styles.tabButtonText, state.activeTab === 'editor' && styles.tabButtonTextActive]}>
-                  Markdown Editor
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {hasContent && (
-              <View style={styles.downloadButtonsContainer}>
-                <TouchableOpacity
-                  onPress={handleExportMarkdown}
-                  style={styles.downloadButton}
-                >
-                  <FileText size={16} color="#FFFFFF" />
-                  <Text style={styles.downloadButtonText}>.md</Text>
-                </TouchableOpacity>
-                {/* PDF export is complex for RN, omitting for now */}
-              </View>
-            )}
-
-            {state.activeTab === 'preview' ? (
-              <View style={styles.ebookPreview}>
-                <WebView
-                  originWhitelist={['*']}
-                  source={{ html: htmlContent }}
-                  style={styles.webView}
-                  containerStyle={styles.webViewContainer}
-                />
-              </View>
-            ) : (
-              <View style={styles.editorContainer}>
-                <TextInput
-                  multiline
-                  value={state.markdownContent}
-                  onChangeText={(text) => updateState({ markdownContent: text })}
-                  style={styles.markdownEditor}
-                  textAlignVertical="top"
-                />
-                <View style={styles.editorFooter}>
-                  <Text style={styles.editorFooterText}>
-                    Lines: {state.markdownContent.split('\n').length} | Characters: {state.markdownContent.length}
-                  </Text>
+                  {state.activeTab === 'preview' ? (
+                    <View style={styles.ebookPreview}>
+                      <WebView
+                        originWhitelist={['*']}
+                        source={{ html: htmlContent }}
+                        style={styles.webView}
+                        containerStyle={styles.webViewContainer}
+                      />
+                    </View>
+                  ) : (
+                    <View style={styles.editorContainer}>
+                      <TextInput
+                        multiline
+                        value={state.markdownContent}
+                        onChangeText={(text) => updateState({ markdownContent: text })}
+                        style={styles.markdownEditor}
+                        textAlignVertical="top"
+                      />
+                      <View style={styles.editorFooter}>
+                        <Text style={styles.editorFooterText}>
+                          Lines: {state.markdownContent.split('\n').length} | Characters: {state.markdownContent.length}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
                 </View>
               </View>
-            )}
-          </View>
-          </View>
+            </>
+          )}
           {/* Export Options */}
           <View style={styles.exportOptionsCard}>
             <Text style={styles.exportOptionsTitle}>
@@ -901,6 +1112,160 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF', // Simulating gradient with white
     marginHorizontal: 12,
+  },
+  introPageCard: {
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.2)',
+    shadowColor: 'rgba(139,92,246,0.1)',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+    padding: 30,
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+  introTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#D8B4FE',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  introDescription: {
+    fontSize: 16,
+    color: '#C084FC',
+    textAlign: 'center',
+    marginBottom: 30,
+    lineHeight: 22,
+  },
+  introSubscribeButton: {
+    backgroundColor: '#8B5CF6',
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 12,
+    shadowColor: '#A78BFA',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
+    marginBottom: 15,
+  },
+  introSubscribeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  introExploreButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  introExploreButtonText: {
+    color: '#C084FC',
+    fontSize: 14,
+    textDecorationLine: 'underline',
+  },
+  paywallOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  paywallModal: {
+    backgroundColor: '#1A1A1A', // Dark background for modal
+    borderRadius: 20,
+    padding: 30,
+    width: '90%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#A78BFA',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.4)',
+  },
+  paywallTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#D8B4FE', // Light purple
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  paywallDescription: {
+    fontSize: 16,
+    color: '#C084FC', // Medium purple
+    textAlign: 'center',
+    marginBottom: 25,
+    lineHeight: 22,
+  },
+  productInfo: {
+    backgroundColor: 'rgba(139,92,246,0.2)', // purple-600/20
+    borderRadius: 15,
+    paddingVertical: 20,
+    paddingHorizontal: 25,
+    marginBottom: 20,
+    width: '100%',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.5)',
+  },
+  productTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  productPrice: {
+    fontSize: 18,
+    color: '#D8B4FE',
+    marginBottom: 15,
+  },
+  subscribeButton: {
+    backgroundColor: '#8B5CF6', // purple-600
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 12,
+    shadowColor: '#A78BFA',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  subscribeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  restoreButton: {
+    marginTop: 15,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#A78BFA',
+  },
+  restoreButtonText: {
+    color: '#A78BFA',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  closePaywallButton: {
+    marginTop: 20,
+    padding: 10,
+  },
+  closePaywallButtonText: {
+    color: '#C084FC',
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
   headerSubtitle: {
     fontSize: 18,
